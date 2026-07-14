@@ -8,3 +8,12 @@ binding = "ASSETS"
 
 [vars]
 ALLOWED_ORIGIN = "https://zirancoin.peterjingrn01.workers.dev"
+
+[[d1_databases]]
+binding = "SQL_DB"
+database_name = "ziran_db"
+database_id = "e5547321-9171-450a-8555-22c7ff7d48b7"
+
+[[kv_namespaces]]
+binding = "DB"
+id = "1156e2611ce5471698ed872f927b9a5f"
