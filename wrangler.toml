@@ -1,0 +1,19 @@
+name = "ziran2-api"
+main = "worker/worker.js"
+compatibility_date = "2026-07-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://YOUR-ZIRAN2-DOMAIN.example"
+
+[[d1_databases]]
+binding = "SQL_DB"
+database_name = "ziran_db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[[kv_namespaces]]
+binding = "DB"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
