@@ -1,5 +1,78 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Create Account</title><link rel="stylesheet" href="style.css"></head><body><main class="wrap"><section class="panel"><h2>Sign In to Ziran2</h2><div id="msg" class="notice">Enter your registered email. A six-digit code will be sent by Resend.</div><form id="send"><label>Email</label><input id="email" type="email" required><div class="actions"><button class="btn gold">Send Code</button></div></form><form id="verify" class="hidden"><label>Verification code</label><input id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required><div class="actions"><button class="btn gold">Verify & Sign In</button></div></form></section></main><script src="app.js"></script><script>
-const send=document.querySelector('#send'),verify=document.querySelector('#verify');
-send.onsubmit=async e=>{e.preventDefault();try{await api('/api/auth/send-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({intent:'signin',email:email.value})});setNotice(msg,'Verification code sent.','ok');send.classList.add('hidden');verify.classList.remove('hidden')}catch(x){setNotice(msg,x.message,'error')}};
-verify.onsubmit=async e=>{e.preventDefault();try{const r=await api('/api/auth/verify-code',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email.value,code:code.value})});localStorage.setItem('ziran_token',r.token);location.href='dashboard.html'}catch(x){setNotice(msg,x.message,'error')}};
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign In to Ziran2</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap nav">
+  <a class="brand" href="index.html">ZIRAN2</a>
+  <nav class="links">
+    <a href="index.html">Home</a><a href="whitepaper.html">White Paper</a>
+    <a href="explorer.html">Explorer</a><a href="dashboard.html">Account</a>
+    <a href="https://www.jsl-ian.com">JSL-ian</a>
+    <a class="btn gold" href="signup.html">Sign Up</a>
+  </nav>
+</div></header>
+<main class="wrap"><section class="panel">
+  <h2>Sign In to Ziran2</h2>
+  <div id="msg" class="notice">Enter your registered email. Resend will send a six-digit code.</div>
+  <form id="sendForm">
+    <label for="email">Email</label><input id="email" type="email" required maxlength="160" autocomplete="email">
+    <div class="actions"><button class="btn gold" type="submit">Send Code</button></div>
+  </form>
+  <form id="verifyForm" class="hidden">
+    <label for="code">Verification code</label>
+    <input id="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required>
+    <div class="actions">
+      <button class="btn gold" type="submit">Verify &amp; Sign In</button>
+      <button class="btn" id="restart" type="button">Use another email</button>
+    </div>
+  </form>
+</section></main>
+<footer><div class="wrap">© 2026 JSL-ian Technologies LTD. All Rights Reserved. · JSL-ian™ is a trademark of JSL-ian Technologies LTD.</div></footer>
+<script src="app.js"></script>
+<script>
+const msgEl = document.querySelector('#msg');
+const sendForm = document.querySelector('#sendForm');
+const verifyForm = document.querySelector('#verifyForm');
+const emailInput = document.querySelector('#email');
+const codeInput = document.querySelector('#code');
+
+sendForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    await api('/api/auth/send-code', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({intent:'signin', email:emailInput.value})
+    });
+    setNotice(msgEl, 'Verification code sent. Check your email.', 'ok');
+    sendForm.classList.add('hidden');
+    verifyForm.classList.remove('hidden');
+    codeInput.focus();
+  } catch (error) { setNotice(msgEl, error.message, 'error'); }
+});
+
+verifyForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    const result = await api('/api/auth/verify-code', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email:emailInput.value, code:codeInput.value})
+    });
+    localStorage.setItem('ziran_token', result.token);
+    location.href = 'dashboard.html';
+  } catch (error) { setNotice(msgEl, error.message, 'error'); }
+});
+
+document.querySelector('#restart').addEventListener('click', () => {
+  verifyForm.classList.add('hidden');
+  sendForm.classList.remove('hidden');
+  codeInput.value = '';
+});
+</script>
+</body></html>
