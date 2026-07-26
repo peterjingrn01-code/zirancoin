@@ -1,0 +1,26 @@
+ZiranCoin Deployment Fix
+
+Upload/replace these files in the root of the existing zirancoin GitHub repository:
+
+1. wrangler.toml
+2. .assetsignore
+3. worker/worker.js
+
+Do not delete or replace the existing HTML, CSS, or app.js files.
+
+After GitHub saves the files:
+Cloudflare -> Workers & Pages -> zirancoin -> Deployments.
+Wait for the automatic build, or select Retry build.
+
+Expected result:
+- Deployment becomes green/successful.
+- Existing pages continue to load.
+- Requests under /api/* go to worker/worker.js.
+- KV binding: DB -> ziran_db_kv.
+- D1 binding: SQL_DB -> ziran_db.
+
+Then test:
+1. Open the ZiranCoin dashboard.
+2. Send 1 ZIRAN to an existing registered email.
+3. Confirm the sender ledger receives a -1 entry.
+4. Confirm the recipient balance and ledger receive +1.
