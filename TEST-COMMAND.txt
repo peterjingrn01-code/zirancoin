@@ -1,0 +1,4 @@
+curl -X POST "https://zirancoin.jsl-ian.com/api/issue-coin" \
+  -H "Authorization: Bearer xZcTOmTFtfabyX1TbVuk-UCAqTqi_EHsz_utcic7cAI" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","amount":1,"reason":"JULE Starter License","reference":"manual-test-001"}'

@@ -1,47 +1,42 @@
-# Ziran2 Pair Coin 1.0
+# ZiranCoin → JULE Store Coin API
 
-## Included
-- Responsive desktop/mobile website
-- User sign-up and sign-in
-- Salted PBKDF2-SHA256 password storage
-- Internal unique Pair ID for every account
-- Wallet and balanced ledger
-- Send / receive
-- Public Explorer
-- One-time Genesis: exactly 1,000,000,000 ZIRAN
-- KV sessions, seven-day expiry
-- Cloudflare Worker API
-- D1 schema
-- No additional issuance endpoint
+This package creates a protected API endpoint:
 
-## Required Cloudflare resources
-- D1: `ziran_db`
-- KV: `ziran_db_kv`
-- Binding: `SQL_DB` → `ziran_db`
-- Binding: `DB` → `ziran_db_kv`
-- Secret: `GENESIS_KEY`
-- Variable: `ALLOWED_ORIGIN`
+POST https://zirancoin.jsl-ian.com/api/issue-coin
 
-## Deployment order
-1. Create the `ziran2` Worker project and connect this repository.
-2. Create or reuse D1 database `ziran_db`.
-3. Open D1 Console and run `worker/schema.sql`.
-4. Create or reuse KV namespace `ziran_db_kv`.
-5. Bind D1 with variable name `SQL_DB`.
-6. Bind KV with variable name `DB`.
-7. Add a long random secret named `GENESIS_KEY`.
-8. Set `ALLOWED_ORIGIN` to the final Ziran2 website origin.
-9. Deploy.
-10. Open `/api/health`; expected result: `{"ok":true,"service":"ziran2-api"}`.
-11. Create the owner account through `signup.html`.
-12. Open `admin.html`; enter the owner email and the server-side `GENESIS_KEY`.
-13. Execute genesis once.
-14. Confirm owner balance: `1,000,000,000 ZIRAN`.
-15. Create a second account and test a transfer.
-16. Confirm both ledger entries and the Explorer transaction.
+It issues one ZiranCoin credit after a verified JULE purchase.
 
-## Pair-proof status
-The present proof is an engineering prototype using SHA-256 over the transaction ID,
-sender Pair ID, receiver Pair ID, amount, and time. It is deliberately isolated so the
-final Pair coding theory can replace it. It is not represented as a completed, formally
-proven post-quantum cryptographic system.
+## Files
+
+- worker/worker.js
+- worker/schema.sql
+- wrangler.toml
+- JULE-STORE-CONNECTION.txt
+- TEST-COMMAND.txt
+
+## Deployment
+
+1. Create or open the Cloudflare Worker for the ZiranCoin API.
+2. Upload `worker/worker.js`.
+3. Bind the ZiranCoin D1 database as `DB`.
+4. Run `worker/schema.sql` once in that D1 database.
+5. Add Worker secret `COIN_API_KEY` with this value:
+
+xZcTOmTFtfabyX1TbVuk-UCAqTqi_EHsz_utcic7cAI
+
+6. Add the route:
+
+zirancoin.jsl-ian.com/api/*
+
+7. In the JULE Store Worker, add:
+
+COIN_API_URL = https://zirancoin.jsl-ian.com/api/issue-coin
+
+COIN_API_KEY = xZcTOmTFtfabyX1TbVuk-UCAqTqi_EHsz_utcic7cAI
+
+## Safety
+
+- The key is stored only as a Cloudflare Worker secret.
+- The Stripe Checkout session ID is used as an idempotent reference.
+- The same purchase cannot issue the coin twice.
+- This uses dedicated tables and does not overwrite existing ZiranCoin tables.

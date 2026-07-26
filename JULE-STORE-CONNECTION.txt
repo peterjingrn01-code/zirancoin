@@ -1,0 +1,17 @@
+JULE STORE VARIABLES / SECRETS
+
+Add these to the JULE Store Worker:
+
+COIN_API_URL
+https://zirancoin.jsl-ian.com/api/issue-coin
+
+COIN_API_KEY
+xZcTOmTFtfabyX1TbVuk-UCAqTqi_EHsz_utcic7cAI
+
+IMPORTANT:
+Use the SAME COIN_API_KEY value in both:
+1. ZiranCoin API Worker secret
+2. JULE Store Worker secret
+
+Do not put this key in D1.
+Do not put this key in public/index.html.
