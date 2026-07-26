@@ -1,4 +1,99 @@
-8c8633a7ff7a5eac59b462d70ceeb34b7338f555
+const SUPPLY = 1000000000n;
+const SCALE = 100000000n;
+const OTP_TTL = 600;
+const OTP_COOLDOWN = 60;
+const MAX_ATTEMPTS = 5;
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const cors = {
+      "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+    };
+
+    if (request.method === "OPTIONS") {
+      return new Response(null, { headers: cors });
+    }
+
+    try {
+      let body;
+
+      if (url.pathname === "/api/health" && request.method === "GET") {
+        body = {
+          ok: true,
+          service: "ziranz-api",
+          auth: "resend-only",
+          store_issue: true
+        };
+      } else if (url.pathname === "/api/auth/send-code" && request.method === "POST") {
+        body = await sendCode(request, env);
+      } else if (url.pathname === "/api/auth/verify-code" && request.method === "POST") {
+        body = await verifyCode(request, env);
+      } else if (url.pathname === "/api/me" && request.method === "GET") {
+        body = await me(request, env);
+      } else if (url.pathname === "/api/transfer" && request.method === "POST") {
+        body = await transfer(request, env);
+      } else if (url.pathname === "/api/explorer" && request.method === "GET") {
+        body = await explorer(env);
+      } else if (url.pathname === "/api/admin/genesis" && request.method === "POST") {
+        body = await genesis(request, env);
+      } else if (url.pathname === "/api/issue-coin" && request.method === "POST") {
+        body = await issueStoreCoin(request, env);
+      } else {
+        return reply({ error: "Not found" }, 404, cors);
+      }
+
+      return reply(body, 200, cors);
+    } catch (error) {
+      console.error(error);
+      return reply(
+        { error: error.message || "Request failed" },
+        error.status || 400,
+        cors
+      );
+    }
+  }
+};
+
+function reply(data, status = 200, headers = {}) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      ...headers
+    }
+  });
+}
+
+function fail(message, status = 400) {
+  const error = new Error(message);
+  error.status = status;
+  throw error;
+}
+
+function emailOf(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function clean(value, max = 160) {
+  return String(value || "").trim().slice(0, max);
+}
+
+function randomHex(bytes = 24) {
+  const array = new Uint8Array(bytes);
+  crypto.getRandomValues(array);
+  return [...array].map(x => x.toString(16).padStart(2, "0")).join("");
+}
+
+function code6() {
+  const array = new Uint32Array(1);
+  crypto.getRandomValues(array);
+  return String(array[0] % 1000000).padStart(6, "0");
+}
+
 async function sha256(value) {
   return [...new Uint8Array(
     await crypto.subtle.digest(
@@ -33,7 +128,7 @@ async function sendCode(request, env) {
 
   if (intent === "signup") {
     if (user) fail("This email already has an account.", 409);
-    if (!name.length < 2) fail("Name is required.");
+    if (name.length < 2) fail("Name is required.");
   } else if (!user) {
     fail("No account found for this email.", 404);
   }
@@ -149,7 +244,7 @@ async function verifyCode(request, env) {
 
   await env.DB.delete(key);
 
-  if (user.pair_status === "ACTIVE") {
+  if (String(user.pair_status || "").toUpperCase() === "LOCKED") {
     fail("Account Pair is locked.", 403);
   }
 
@@ -590,4 +685,4 @@ function secureEqual(left, right) {
     difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
   }
   return difference === 0;
-    }
+}
