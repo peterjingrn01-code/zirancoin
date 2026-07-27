@@ -18,14 +18,19 @@ export default {
     }
 
     try {
+      if (!env.SQL_DB) fail("SQL_DB binding is not configured.", 500);
+      if (!env.DB) fail("DB binding is not configured.", 500);
+
       let body;
 
       if (url.pathname === "/api/health" && request.method === "GET") {
         body = {
           ok: true,
-          service: "ziranz-api",
+          service: "zirancoin-api-v2.1",
           auth: "resend-only",
-          store_issue: true
+          d1: Boolean(env.SQL_DB),
+          kv: Boolean(env.DB),
+          store_issue: Boolean(env.COIN_API_KEY)
         };
       } else if (url.pathname === "/api/auth/send-code" && request.method === "POST") {
         body = await sendCode(request, env);
@@ -47,7 +52,12 @@ export default {
 
       return reply(body, 200, cors);
     } catch (error) {
-      console.error(error);
+      console.error("ZiranCoin API error:", {
+        path: url.pathname,
+        method: request.method,
+        message: error?.message || String(error),
+        status: error?.status || 500
+      });
       return reply(
         { error: error.message || "Request failed" },
         error.status || 400,
@@ -366,6 +376,9 @@ async function transfer(request, env) {
     .bind(to.id)
     .first();
 
+  if (!fromWallet) fail("Sender wallet was not found.", 409);
+  if (!toWallet) fail("Recipient wallet was not found.", 409);
+
   const fromBalance = amountUnits0(fromWallet.balance);
   const toBalance = amountUnits0(toWallet.balance);
 
@@ -499,6 +512,26 @@ async function explorer(env) {
   };
 }
 
+async function ensureStoreIssueSchema(env) {
+  await env.SQL_DB.prepare(
+    `CREATE TABLE IF NOT EXISTS jule_coin_ledger (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       email TEXT NOT NULL,
+       amount TEXT NOT NULL,
+       reason TEXT,
+       external_reference TEXT NOT NULL UNIQUE,
+       status TEXT NOT NULL DEFAULT 'issued',
+       tx_id TEXT,
+       created_at INTEGER NOT NULL DEFAULT (unixepoch())
+     )`
+  ).run();
+
+  // These indexes are harmless when already present and make retries/lookups fast.
+  await env.SQL_DB.prepare(
+    "CREATE INDEX IF NOT EXISTS idx_jule_coin_ledger_email ON jule_coin_ledger(email)"
+  ).run();
+}
+
 /*
  * JULE STORE → ZIRANCOIN
  * Protected endpoint:
@@ -523,6 +556,8 @@ async function issueStoreCoin(request, env) {
     fail("Unauthorized.", 401);
   }
 
+  await ensureStoreIssueSchema(env);
+
   const data = await request.json();
   const email = emailOf(data.email);
   const reason = clean(data.reason || "JULE Starter License", 160);
@@ -537,7 +572,7 @@ async function issueStoreCoin(request, env) {
 
   // Idempotency: the same Stripe Checkout session can issue only once.
   const issued = await env.SQL_DB
-    .prepare("SELECT external_reference,status FROM jule_coin_ledger WHERE external_reference=?")
+    .prepare("SELECT external_reference,status,tx_id FROM jule_coin_ledger WHERE external_reference=?")
     .bind(reference)
     .first();
 
@@ -560,6 +595,7 @@ async function issueStoreCoin(request, env) {
       email,
       amount: amountString,
       balance: existingWallet?.balance || "0",
+      tx_id: issued.tx_id || null,
       reference
     };
   }
@@ -606,6 +642,8 @@ async function issueStoreCoin(request, env) {
     .bind(genesisRow.owner_user_id)
     .first();
 
+  if (!owner) fail("Genesis owner account was not found.", 409);
+
   const ownerWallet = await env.SQL_DB
     .prepare("SELECT balance FROM wallets WHERE user_id=?")
     .bind(owner.id)
@@ -616,8 +654,11 @@ async function issueStoreCoin(request, env) {
     .bind(recipient.id)
     .first();
 
-  const ownerBalance = amountUnits0(ownerWallet?.balance || "0");
-  const recipientBalance = amountUnits0(recipientWallet?.balance || "0");
+  if (!ownerWallet) fail("Genesis owner wallet was not found.", 409);
+  if (!recipientWallet) fail("Recipient wallet was not found.", 409);
+
+  const ownerBalance = amountUnits0(ownerWallet.balance);
+  const recipientBalance = amountUnits0(recipientWallet.balance);
 
   if (ownerBalance < amount) fail("Genesis owner has insufficient balance.", 409);
 
@@ -658,10 +699,10 @@ async function issueStoreCoin(request, env) {
     env.SQL_DB
       .prepare(
         `INSERT INTO jule_coin_ledger
-         (email,amount,reason,external_reference,status,created_at)
-         VALUES(?,?,?,?,?,unixepoch())`
+         (email,amount,reason,external_reference,status,tx_id,created_at)
+         VALUES(?,?,?,?,?,?,unixepoch())`
       )
-      .bind(email, Number(data.amount || 1), reason, reference, "issued")
+      .bind(email, amountString, reason, reference, "issued", txId)
   ]);
 
   return {
